@@ -5,15 +5,11 @@ import pandas as pd
 
 # Cambia esta ruta si el archivo no está en la misma carpeta
 archivo = "C:\\Users\\sergi\\Desktop\\App Pensum\\Data\\Materias Mecatrónica.xlsx"
+class Materia:
+    def __init__(self, nombre, codigo, creditos, prerequisitos=None, creditos_requeridos=0):
+        self.nombre = nombre
+        self.codigo = codigo
+        self.creditos = creditos
+        self.prerequisitos = prerequisitos if prerequisitos else []
+        self.creditos_requeridos=creditos_requeridos if creditos_requeridos else 0
 
-
-# Leer el Excel
-df = pd.read_excel(archivo)
-
-# Mostrar las primeras 10 filas
-print("Primeras filas del archivo:")
-print(df.head(10))
-
-# Mostrar las columnas detectadas
-print("\nColumnas en el archivo:")
-print(df.columns.tolist())
