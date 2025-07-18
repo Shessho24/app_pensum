@@ -230,7 +230,15 @@ class PensumApp:
 
     
         else:
-            messagebox.showwarning("No se puede cursar", f"No se puede cursar {materia.nombre}.")
+            requisitos = materia.prerequisitos if materia.prerequisitos else "ninguno"
+            creditos_requeridos = materia.creditos_requeridos if materia.creditos_requeridos > 0 else "ninguno"
+            materias_requeridas = []
+            for i in requisitos:
+                materia= self.pensum_principal.buscar_materia_por_codigo(i)
+                if materia:
+                    materias_requeridas.append(materia.nombre)
+            requisitos = ", ".join(materias_requeridas) if materias_requeridas else requisitos
+            messagebox.showwarning("No se puede cursar", f"No se puede cursar {materia.nombre}.\n Es necesario cursar los prerrequisitos: {requisitos}.\n Créditos requeridos: {creditos_requeridos}.\n Créditos acumulados: {self.creditos_acumulados}.")
     
 if __name__ == "__main__":
     root = ctk.CTk()
