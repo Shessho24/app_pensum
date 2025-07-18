@@ -1,4 +1,4 @@
-"""Pruebas de la interfaz de usuario sin fucionalidad completa, solo visualización"""
+"""Mensaje de inicio del archivo: Este archivo contiene la implementación de la interfaz gráfica para el seguimiento del pensum de Ingeniería Mecatrónica, utilizando customtkinter y pandas para manejar los datos de las materias."""
 
 import pandas as pd
 import customtkinter as ctk
@@ -135,6 +135,10 @@ class PensumApp:
         self.scroll_horizontal = ctk.CTkScrollableFrame(self.root, width=0, height=500, fg_color=colores_institucionales["gris"], orientation="horizontal")
         self.scroll_horizontal.pack(side="top", fill="both", expand=True)
 
+        # btn_der = ctk.CTkButton(self.root, text="→", command=lambda: self.scroll_horizontal._parent_canvas.xview_scroll(100, "units"))
+        # btn_izq = ctk.CTkButton(self.root, text="←", command=lambda: self.scroll_horizontal._parent_canvas.xview_scroll(-100, "units"))
+        # btn_der.pack(side="right", padx=10, pady=10)
+        # btn_izq.pack(side="left", padx=10, pady=10)
         # crear objeto de pensum
         while not self.pensum_cargado:
             self.pensum_principal = Pensum()
@@ -158,7 +162,7 @@ class PensumApp:
             lbl_semestre = ctk.CTkLabel(frame_semestre, text=f"Semestre {semestre}", font=("Arial", 25), text_color="white")
             lbl_semestre.pack(pady=10, fill="x")
 
-        #creacion de los botones de las materias, si la maeria no se puede cursar, no se puede presionar el boton
+        #creacion de los botones de las materias
         self.materias = {}
         for materia in self.pensum_principal.materias:
             
@@ -175,7 +179,7 @@ class PensumApp:
                 bg_color="transparent",
                 text_color="white"
             )
-            btn_materia.pack(pady=5, padx=5, fill="x")
+            btn_materia.pack(pady=5, padx=5, fill="both", expand=True)
             self.materias[materia.codigo] = btn_materia
     #Explicación de los colores con muestra de colores sin color de fondo
         self.frame_explicacion = ctk.CTkFrame(self.root, width=1200, height=50, fg_color="transparent")
