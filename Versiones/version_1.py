@@ -83,7 +83,7 @@ class Pensum:
 
 Pensum_principal = Pensum()
 Pensum_principal.cargar_pensum(r"C:\Users\sergi\Desktop\App Pensum\Data\Materias Mecatrónica.xlsx")
-materia= Pensum_principal.buscar_materia_por_codigo("153002")
-materia.puede_cursarse(Pensum_principal.materias_aprobadas, Pensum_principal.creditos_acumulados)
-integral= Pensum_principal.buscar_materia_por_codigo("157401")
-integral.puede_cursarse(Pensum_principal.materias_aprobadas, Pensum_principal.creditos_acumulados)
+
+#saber cuantos semestres tiene el pensum
+semestres = set(materia.semestre for materia in Pensum_principal.materias)
+print(f"El pensum tiene {len(semestres)} semestres.")
