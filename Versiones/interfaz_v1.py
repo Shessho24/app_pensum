@@ -125,11 +125,11 @@ class PensumApp:
         frame_titulo = ctk.CTkFrame(self.root, width=1200, height=70, fg_color=colores_institucionales["azul"])
         frame_titulo.pack(side="top", fill="x")
         lbl_titulo = ctk.CTkLabel(frame_titulo, text="Seguimiento del Pensum de Ingeniería Mecatrónica", font=("Arial", 24), fg_color=colores_institucionales["azul"], text_color="white")
-        lbl_titulo.pack(pady=20)
+        lbl_titulo.pack(pady=10, fill="x")
         #mostrar creditos acumulados que pueden ser actualizados facilmente
         global creditos_acumulados 
         self.lbl_creditos = ctk.CTkLabel(frame_titulo, text=f"Créditos Acumulados: {self.creditos_acumulados}", font=("Arial", 16), fg_color=colores_institucionales["azul"], text_color="white")
-        self.lbl_creditos.pack(side="right", padx=20)
+        self.lbl_creditos.pack(side="right", padx=5)
 
         #scroll horizontal
         self.scroll_horizontal = ctk.CTkScrollableFrame(self.root, width=0, height=500, fg_color=colores_institucionales["gris"], orientation="horizontal")
@@ -169,7 +169,7 @@ class PensumApp:
             btn_materia = ctk.CTkButton(
                 self.frames_semestre[materia.semestre],
 
-                text=f"{materia.nombre}\n{materia.codigo} - {materia.creditos} Créditos",
+                text=f"{(str(materia.nombre))}\n{materia.codigo} - {materia.creditos} Créditos",
                 font=("Calibri", 20),
                 command=partial(self.cursar_materia, materia.codigo),
                 width=180,
@@ -230,16 +230,19 @@ class PensumApp:
 
     
         else:
-            requisitos = materia.prerequisitos if materia.prerequisitos else "ninguno"
-            creditos_requeridos = materia.creditos_requeridos if materia.creditos_requeridos > 0 else "ninguno"
-            materias_requeridas = []
-            for i in requisitos:
-                materia= self.pensum_principal.buscar_materia_por_codigo(i)
-                if materia:
-                    materias_requeridas.append(materia.nombre)
-            requisitos = ", ".join(materias_requeridas) if materias_requeridas else requisitos
-            messagebox.showwarning("No se puede cursar", f"No se puede cursar {materia.nombre}.\n Es necesario cursar los prerrequisitos: {requisitos}.\n Créditos requeridos: {creditos_requeridos}.\n Créditos acumulados: {self.creditos_acumulados}.")
-    
+            if materia.estado == "Aprobada":
+                messagebox.showinfo("Materia Aprobada", f"{materia.nombre} ya ha sido aprobada.")
+            else:
+                requisitos = materia.prerequisitos if materia.prerequisitos else "ninguno"
+                creditos_requeridos = materia.creditos_requeridos if materia.creditos_requeridos > 0 else "ninguno"
+                materias_requeridas = []
+                for i in requisitos:
+                    variable_temporal= self.pensum_principal.buscar_materia_por_codigo(i)
+                    if variable_temporal:
+                        materias_requeridas.append(variable_temporal.nombre)
+                requisitos = ", ".join(materias_requeridas) if materias_requeridas else requisitos
+                messagebox.showwarning("No se puede cursar", f"No se puede cursar {materia.nombre}.\n Es necesario cursar los prerrequisitos: {requisitos}.\n Créditos requeridos: {creditos_requeridos}.\n Créditos acumulados: {self.creditos_acumulados}.")
+        
 if __name__ == "__main__":
     root = ctk.CTk()
     root.iconbitmap(escudo)  # Establecer el icono de la ventana
