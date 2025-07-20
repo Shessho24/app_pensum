@@ -41,34 +41,43 @@ class Materia:
             self.corequisitos = [req.strip() for req in coreq_str.split('/') if req.strip()]
         self.creditos_requeridos=int(creditos_requeridos) if creditos_requeridos else 0
         self.estado = Estado
-    def puede_cursarse(self, materias_aprobadas, creditos_acumulados):
+    def puede_cursarse(self, materias_aprobadas, creditos_acumulados, pensum, visitadas=None):
+        if visitadas is None:
+            visitadas = set()
+
+        if self.codigo in visitadas:
+            return False
+
+        visitadas.add(self.codigo)
+
         if self.estado == "Aprobada":
-            #print(f"[INFO] {self.nombre} ya está aprobada")
             return False
-        
-        # Verificar créditos
-        if self.creditos_requeridos > 0 and creditos_acumulados < self.creditos_requeridos:
-            #print(f"[REQ] Faltan créditos para {self.nombre} (Requiere: {self.creditos_requeridos})")
-            return False
-        
-        # Verificar prerrequisitos
-        for req in self.prerequisitos:
-            if req not in materias_aprobadas:
-                #rint(f"[REQ] Prerrequisito no cumplido: {req} para {self.nombre}")
+
+        for cod in self.prerequisitos:
+            if cod not in materias_aprobadas:
                 return False
-        
-        #print(f"[OK] {self.nombre} puede cursarse")
+
+        if creditos_acumulados < self.creditos_requeridos:
+            return False
+
+        for cod in self.corequisitos:
+            coreq = pensum.buscar_materia_por_codigo(cod)
+            if coreq and coreq.estado != "Aprobada":
+                if not coreq.puede_cursarse(materias_aprobadas, creditos_acumulados, pensum, visitadas):
+                    return False
+
         return True
+
+
     def aprobar(self):
         self.estado = "Aprobada"
         # Aumentar créditos acumulados al aprobar
-        global creditos_acumulados
-        creditos_acumulados += self.creditos
-    def color_estado(self, materias_aprobadas, creditos_acumulados):
+
+    def color_estado(self, materias_aprobadas, creditos_acumulados,pensum):
         if self.estado == "Aprobada":
             return colores_institucionales["dorado"]
         elif self.estado == "Pendiente":
-            if self.puede_cursarse(materias_aprobadas, creditos_acumulados):
+            if self.puede_cursarse(materias_aprobadas, creditos_acumulados, pensum):
                 return colores_institucionales["rojo"]
             else:
                 return colores_institucionales["azul"]
@@ -102,9 +111,7 @@ class Pensum:
     def buscar_materia_por_codigo(self, codigo):
         for materia in self.materias:
             if materia.codigo == codigo:
-                #print(f"Materia encontrada: {materia.nombre} (Código: {materia.codigo})")
                 return materia
-        #print("Materia no encontrada.")
         return None
 
 def cargar_pensum():
@@ -183,6 +190,8 @@ class PensumApp:
         self.frame_inferior.pack(side="bottom", fill="x")
         lbl_inferior = ctk.CTkLabel(self.frame_inferior, text="Desarrollado por Sergio Ibarra", font=("Arial", 16), fg_color=colores_institucionales["azul"], text_color="white")   
         lbl_inferior.pack(pady=20)
+
+
     def crear_scroll_horizontal(self):
         
         self.pensum_principal = Pensum()
@@ -228,7 +237,7 @@ class PensumApp:
                     command=partial(self.cursar_materia, materia.codigo),
                     width=180,
                     height=40,
-                    fg_color=materia.color_estado(self.pensum_principal.materias_aprobadas, self.pensum_principal.creditos_acumulados),
+                    fg_color=materia.color_estado(self.pensum_principal.materias_aprobadas, self.pensum_principal.creditos_acumulados, self.pensum_principal),
                     hover_color="Gray",
                     bg_color="transparent",
                     text_color="white"
@@ -239,27 +248,37 @@ class PensumApp:
 
     def cursar_materia(self, codigo_materia):
         materia = self.pensum_principal.buscar_materia_por_codigo(codigo_materia)
-        if materia and materia.puede_cursarse(self.pensum_principal.materias_aprobadas, self.pensum_principal.creditos_acumulados):
+        if materia and materia.puede_cursarse(self.pensum_principal.materias_aprobadas, 
+                                            self.pensum_principal.creditos_acumulados, 
+                                            self.pensum_principal):
             materia.aprobar()
             self.pensum_principal.materias_aprobadas.add(materia.codigo)
             self.pensum_principal.creditos_acumulados += materia.creditos
-            # Actualizar el botón de la materia
-            self.materias[materia.codigo].configure(fg_color=colores_institucionales["rojo"])
-            #messagebox.showinfo("Materia Cursada", f"{materia.nombre} ha sido aprobada.")
-            # cambiar el color del botón a dorado si se aprueba
-            self.materias[materia.codigo].configure(fg_color=colores_institucionales["dorado"], text_color="black")
-            #actualzar todos los botones de materias si la materia era requerida 
+            
+            # Actualizar el botón de la materia aprobada
+            self.materias[materia.codigo].configure(
+                fg_color=colores_institucionales["dorado"], 
+                text_color="black"
+            )
+            
+            # Actualizar todos los otros botones
             for m in self.pensum_principal.materias:
                 if m.codigo != materia.codigo:
-                    self.materias[m.codigo].configure(fg_color=m.color_estado(self.pensum_principal.materias_aprobadas, self.pensum_principal.creditos_acumulados))
+                    self.materias[m.codigo].configure(
+                        fg_color=m.color_estado(
+                            self.pensum_principal.materias_aprobadas,
+                            self.pensum_principal.creditos_acumulados,
+                            self.pensum_principal
+                        ),
+                        
+                    )
 
             # Actualizar créditos acumulados
             self.creditos_acumulados = self.pensum_principal.creditos_acumulados
             self.lbl_creditos.configure(text=f"Créditos Acumulados: {self.creditos_acumulados}")
+            
             if self.creditos_acumulados >= 160:
                 messagebox.showinfo("Felicidades", "¡Has completado los créditos necesarios para graduarte!")
-
-    
         else:
             if materia.estado == "Aprobada":
                 messagebox.showinfo("Materia Aprobada", f"{materia.nombre} ya ha sido aprobada.")
@@ -272,7 +291,17 @@ class PensumApp:
                     if variable_temporal:
                         materias_requeridas.append(variable_temporal.nombre)
                 requisitos = ", ".join(materias_requeridas) if materias_requeridas else requisitos
-                messagebox.showwarning("No se puede cursar", f"No se puede cursar {materia.nombre}.\n Es necesario cursar los prerrequisitos: {requisitos}.\n Créditos requeridos: {creditos_requeridos}.\n Créditos acumulados: {self.creditos_acumulados}.")
+                # Validar si hay corequisitos
+                if materia.corequisitos:    
+                    materias_corequeridas = []
+                    for j in materia.corequisitos:
+                        variable_temporal= self.pensum_principal.buscar_materia_por_codigo(j)
+                        if variable_temporal:
+                            materias_corequeridas.append(variable_temporal.nombre)
+                    corequisitos = ", ".join(materias_corequeridas) if materias_corequeridas else "ninguno"
+                    messagebox.showwarning("No se puede cursar", f"No se puede cursar {materia.nombre}.\n Es necesario cursar los prerrequisitos: {requisitos}.\n Corequisitos: {corequisitos}.\n Créditos requeridos: {creditos_requeridos}.\n Créditos acumulados: {self.creditos_acumulados}.")
+                else:
+                    messagebox.showwarning("No se puede cursar", f"No se puede cursar {materia.nombre}.\n Es necesario cursar los prerrequisitos: {requisitos}.\n Créditos requeridos: {creditos_requeridos}.\n Créditos acumulados: {self.creditos_acumulados}.")
         # Actualizar créditos acumulados en la etiqueta    
 if __name__ == "__main__":
     root = ctk.CTk()
