@@ -4,6 +4,7 @@ import pandas as pd
 import customtkinter as ctk
 from tkinter import messagebox
 from functools import partial
+from tkinter import filedialog
 
 escudo= r"C:\Users\sergi\Desktop\App Pensum\Data\escudounipamplona-_1_.ico"
 #configurar apariencia de la interfaz
@@ -17,7 +18,7 @@ colores_institucionales = {"rojo":"#ad3333", "azul":"#003366","dorado":"#FFD700"
 creditos_acumulados= 0
 #crear el scroll horizontal principal de la interfaz
 class Materia:
-    def __init__(self, nombre, codigo,semestre, creditos, prerequisitos, creditos_requeridos=0, Estado="Pendiente"):
+    def __init__(self, nombre, codigo,semestre, creditos, prerequisitos, corequisitos, creditos_requeridos=0, Estado="Pendiente"):
         self.nombre = nombre
         self.codigo = str(codigo)
         self.semestre = semestre
@@ -30,6 +31,14 @@ class Materia:
             prereq_str = str(prerequisitos).strip()
             # Separar por slash y eliminar elementos vacíos
             self.prerequisitos = [req.strip() for req in prereq_str.split('/') if req.strip()]
+        # separar corequisitos por coma y posteriromente agregar a una lista    
+        if pd.isna(corequisitos) or str(corequisitos).strip() == "":
+            self.corequisitos = []
+        else:
+            # Normalizar a string y eliminar espacios
+            coreq_str= str(corequisitos).strip()
+            # Separar por slash y eliminar elementos vacíos
+            self.corequisitos = [req.strip() for req in coreq_str.split('/') if req.strip()]
         self.creditos_requeridos=int(creditos_requeridos) if creditos_requeridos else 0
         self.estado = Estado
     def puede_cursarse(self, materias_aprobadas, creditos_acumulados):
@@ -71,10 +80,10 @@ class Pensum:
         self.materias_aprobadas = set()
         self.creditos_acumulados = 0
     
-    def cargar_pensum(self, ruta_archivo):
-        
+    def crear_pensum(self):
+        ruta= cargar_pensum()
+        df= pd.read_excel(ruta, sheet_name="Pensum", engine='openpyxl')
         try:
-            df = pd.read_excel(ruta_archivo)
             for _, row in df.iterrows():
                 materia = Materia(
                     nombre=row['Nombre'],
@@ -82,11 +91,11 @@ class Pensum:
                     semestre=row['Semestre'],
                     creditos=row['Créditos'],
                     prerequisitos=str(row['Prerrequisitos'] if pd.notna(row['Prerrequisitos']) else ""),
+                    corequisitos=str(row['Corequisitos'] if pd.notna(row['Corequisitos']) else ""),
                     creditos_requeridos=row['Creditos_Requisitos'] if pd.notna(row['Creditos_Requisitos']) else 0,
                     Estado=row['Estado'] if pd.notna(row['Estado']) else "Pendiente"
                 )
                 self.materias.append(materia)
-            #print("Pensum cargado exitosamente.")
         except Exception as e:
             return e
 
@@ -97,7 +106,15 @@ class Pensum:
                 return materia
         #print("Materia no encontrada.")
         return None
-    
+
+def cargar_pensum():
+    archivo_pensum = filedialog.askopenfilename(
+        title="Seleccionar archivo de pensum",
+        filetypes=[("Archivos Excel", "*.xlsx"), ("Todos los archivos", "*.*")]
+    )
+    if archivo_pensum:
+        ruta_archivo = archivo_pensum
+        return ruta_archivo
 
 
 
@@ -130,58 +147,21 @@ class PensumApp:
         global creditos_acumulados 
         self.lbl_creditos = ctk.CTkLabel(frame_titulo, text=f"Créditos Acumulados: {self.creditos_acumulados}", font=("Arial", 16), fg_color=colores_institucionales["azul"], text_color="white")
         self.lbl_creditos.pack(side="right", padx=5)
+        # Botón para cargar pensum
 
-        #scroll horizontal
-        self.scroll_horizontal = ctk.CTkScrollableFrame(self.root, width=0, height=500, fg_color=colores_institucionales["gris"], orientation="horizontal")
-        self.scroll_horizontal.pack(side="top", fill="both", expand=True)
 
-        # btn_der = ctk.CTkButton(self.root, text="→", command=lambda: self.scroll_horizontal._parent_canvas.xview_scroll(100, "units"))
-        # btn_izq = ctk.CTkButton(self.root, text="←", command=lambda: self.scroll_horizontal._parent_canvas.xview_scroll(-100, "units"))
-        # btn_der.pack(side="right", padx=10, pady=10)
-        # btn_izq.pack(side="left", padx=10, pady=10)
-        # crear objeto de pensum
-        while not self.pensum_cargado:
-            self.pensum_principal = Pensum()
-            self.pensum_principal.cargar_pensum(r"C:\Users\sergi\Desktop\App Pensum\Data\Materias Mecatrónica.xlsx")
-            if not self.pensum_principal.materias:
-                messagebox.showerror("Error", "No se pudo cargar el pensum. Verifica el archivo.")
-                #destruir ventana y salir del programa
-                self.root.destroy()
-                return
-            else:
-                break
-        #espacios para los 10 semestres de izquierda a derecha dentro del scroll y segun pensum
-
-        self.frames_semestre = {}
-        cantidad_semestres = set(materia.semestre for materia in self.pensum_principal.materias)
-        for semestre in sorted(cantidad_semestres):
-            frame_semestre = ctk.CTkFrame(self.scroll_horizontal, width=200, height=500, fg_color="gray")
-            frame_semestre.pack(side="left", padx=10, pady=10, fill="both", expand=True)
-            self.frames_semestre[semestre] = frame_semestre
-            # Etiqueta para el semestre
-            lbl_semestre = ctk.CTkLabel(frame_semestre, text=f"Semestre {semestre}", font=("Arial", 25), text_color="white")
-            lbl_semestre.pack(pady=10, fill="x")
-
-        #creacion de los botones de las materias
-        self.materias = {}
-        for materia in self.pensum_principal.materias:
-            
-            btn_materia = ctk.CTkButton(
-                self.frames_semestre[materia.semestre],
-
-                text=f"{(str(materia.nombre))}\n{materia.codigo} - {materia.creditos} Créditos",
-                font=("Calibri", 20),
-                command=partial(self.cursar_materia, materia.codigo),
-                width=180,
-                height=40,
-                fg_color=materia.color_estado(self.pensum_principal.materias_aprobadas, self.pensum_principal.creditos_acumulados),
-                hover_color="Gray",
-                bg_color="transparent",
-                text_color="white"
-            )
-            btn_materia.pack(pady=5, padx=5, fill="both", expand=True)
-            self.materias[materia.codigo] = btn_materia
-    #Explicación de los colores con muestra de colores sin color de fondo
+        self.btn_cargar = ctk.CTkButton(
+            frame_titulo, 
+            text="Cargar Pensum desde Excel",
+            command=self.crear_scroll_horizontal,
+            width=200,
+            height=40,
+            fg_color=colores_institucionales["rojo"],
+            hover_color=colores_institucionales["gris"],
+            text_color="white"
+        )
+        self.btn_cargar.pack(side="left", padx=5, pady=10)
+        
         self.frame_explicacion = ctk.CTkFrame(self.root, width=1200, height=50, fg_color="transparent")
         self.frame_explicacion.pack(side="top", fill="x")
         lbl_explicacion = ctk.CTkLabel(self.frame_explicacion, text="Colores de las Materias:", font=("Arial", 16), text_color="white", fg_color="transparent")
@@ -203,8 +183,59 @@ class PensumApp:
         self.frame_inferior.pack(side="bottom", fill="x")
         lbl_inferior = ctk.CTkLabel(self.frame_inferior, text="Desarrollado por Sergio Ibarra", font=("Arial", 16), fg_color=colores_institucionales["azul"], text_color="white")   
         lbl_inferior.pack(pady=20)
+    def crear_scroll_horizontal(self):
+        
+        self.pensum_principal = Pensum()
+        self.pensum_principal.crear_pensum()
 
-            
+        if self.pensum_principal.materias:
+            #verificar si ya hay un scroll horizontal creado, si lo hay no crear uno nuevo
+            if hasattr(self, 'scroll_horizontal'):
+                pass
+            else:
+            #scroll horizontal
+                self.scroll_horizontal = ctk.CTkScrollableFrame(self.root, width=0, height=500, fg_color=colores_institucionales["gris"], orientation="horizontal")
+                self.scroll_horizontal.pack(side="top", fill="both", expand=True)
+
+            #espacios para los 10 semestres de izquierda a derecha dentro del scroll y segun pensum
+            #verificar si ya hay frames de semestres creados, si los hay destruirlos
+            if hasattr(self, 'frames_semestre'):
+                for frame in self.frames_semestre.values():
+                    frame.destroy()
+            else:
+                self.frames_semestre = {}
+            cantidad_semestres = set(materia.semestre for materia in self.pensum_principal.materias)
+            for semestre in sorted(cantidad_semestres):
+                frame_semestre = ctk.CTkFrame(self.scroll_horizontal, width=200, height=500, fg_color="gray")
+                frame_semestre.pack(side="left", padx=10, pady=10, fill="both", expand=True)
+                self.frames_semestre[semestre] = frame_semestre
+                # Etiqueta para el semestre
+                lbl_semestre = ctk.CTkLabel(frame_semestre, text=f"Semestre {semestre}", font=("Arial", 25), text_color="white")
+                lbl_semestre.pack(pady=10, fill="x")
+        # Limpiar materias anteriores si las hay
+            if hasattr(self, 'materias'):
+                for btn in self.materias.values():
+                    btn.destroy()
+            else:
+                self.materias = {}
+            for materia in self.pensum_principal.materias:
+                
+                btn_materia = ctk.CTkButton(
+                    self.frames_semestre[materia.semestre],
+
+                    text=f"{(str(materia.nombre))}\n{materia.codigo} - {materia.creditos} Créditos",
+                    font=("Calibri", 20),
+                    command=partial(self.cursar_materia, materia.codigo),
+                    width=180,
+                    height=40,
+                    fg_color=materia.color_estado(self.pensum_principal.materias_aprobadas, self.pensum_principal.creditos_acumulados),
+                    hover_color="Gray",
+                    bg_color="transparent",
+                    text_color="white"
+                )
+                btn_materia.pack(pady=5, padx=5, fill="both", expand=True)
+                self.materias[materia.codigo] = btn_materia
+
 
     def cursar_materia(self, codigo_materia):
         materia = self.pensum_principal.buscar_materia_por_codigo(codigo_materia)
@@ -242,7 +273,7 @@ class PensumApp:
                         materias_requeridas.append(variable_temporal.nombre)
                 requisitos = ", ".join(materias_requeridas) if materias_requeridas else requisitos
                 messagebox.showwarning("No se puede cursar", f"No se puede cursar {materia.nombre}.\n Es necesario cursar los prerrequisitos: {requisitos}.\n Créditos requeridos: {creditos_requeridos}.\n Créditos acumulados: {self.creditos_acumulados}.")
-        
+        # Actualizar créditos acumulados en la etiqueta    
 if __name__ == "__main__":
     root = ctk.CTk()
     root.iconbitmap(escudo)  # Establecer el icono de la ventana
